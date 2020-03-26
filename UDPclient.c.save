@@ -1,4 +1,4 @@
-# include <stdio.h>
+ include <stdio.h>
 # include <sys/types.h>
 # include <sys/socket.h>
 # include <stdlib.h>
@@ -13,7 +13,7 @@
 
 # define PORT 15000
 # define ADDRESS "127.0.0.1"
-# define videoFile "earth.mov"
+# define VideoFile "earth.mov"
 # define BUFSIZE 500 // Restricting payload 
 
 struct packet {
