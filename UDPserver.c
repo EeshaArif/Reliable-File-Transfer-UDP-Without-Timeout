@@ -51,6 +51,7 @@ int main(int argc, char* argv[]) {
 	struct packet packets[5];
 	int _acks;
 	struct packet acks[5];
+	int num; 
 
 
 	// Socket Created
@@ -127,15 +128,16 @@ int main(int argc, char* argv[]) {
 
 			// Creating acks for the packets received
 			if (packets[i].size !=  0) {
+				num = packets[i].seqNum;
 				// Setting condition for an ack to be checked by the client
-				acks[i].size = -99;
-				acks[i].seqNum = packets[i].seqNum;
+				acks[num].size = -99;
+				acks[num].seqNum = packets[i].seqNum;
 
 				// Sending acks to the client
-				sendlen = sendto(_socket, &acks[i], sizeof(acks[i]), 0, (struct sockaddr*) & address, addr_length);
+				sendlen = sendto(_socket, &acks[num], sizeof(acks[num]), 0, (struct sockaddr*) & address, addr_length);
 				if (sendlen > 0) {
 					_acks++;
-					fprintf(stdout, "Ack sent: %d\n", acks[i].seqNum);
+					fprintf(stdout, "Ack sent: %d\n", acks[packets[num].seqNum].seqNum);
 				}
 			}
 		}
@@ -146,12 +148,15 @@ int main(int argc, char* argv[]) {
 			recvlen = recvfrom(_socket, &_packet, sizeof(struct packet), 0, (struct sockaddr*) & address,&addr_length );
 			// After the packet has been received successfully
 			if (recvlen > 0) {
-				packets[_packet.seqNum] = _packet;
-				_acks++;
-				acks[_acks].size = -99;
-				acks[_acks].seqNum = packets[_acks].seqNum;
-
-
+				num = _packet.seqNum;
+				packets[num] = _packet;
+				acks[num].size = -99;
+				acks[num].seqNum = _packet.seqNum;
+				// Sending acks again to the client
+				if (sendto(_socket, &acks[num], sizeof(acks[num]), 0, (struct sockaddr*) & address, addr_length)) {
+					fprintf(stdout, "Ack sent: %d\n", acks[num].seqNum);
+					_acks++;
+				}
 			}
 	
 		}
@@ -176,7 +181,7 @@ int main(int argc, char* argv[]) {
 	}
 
 
-	   fprintf(stdout, "\n\n File Received Successfully.\n The copied file is named \"received-video\"\nPlease check your ./ repository.\n\n");
+	   fprintf(stdout, "\n\nFile Received Successfully.\nThe copied file is named \"received-video\"\nPlease check your ./ repository.\n\n");
        close(_socket);
        return 0;
 
