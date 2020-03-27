@@ -21,28 +21,32 @@ struct packet {
 
 int main(int argc, char* argv[]) {
 	// Two arguments should be provided
+	// Specifying port number from command line
 	if (argc < 2) {
 		perror("Port Number not specified. \nTry ./serv.out 9898\n");
                 return 0;
 
 	}
 
-	// Converting string to integer (atoi)
-	int PORT = atoi(argv[1]);
+	
+	// Socket Variables
+	int PORT = atoi(argv[1]); // Converting string to integer (atoi)
 	int _bind;
 	int _socket;
 	struct sockaddr_in address;
 	socklen_t addr_length;
-        addr_length = sizeof(struct sockaddr_in);
+    addr_length = sizeof(struct sockaddr_in);
 
+	// Video File Variables
 	int recvlen;
 	int sendlen;
 	int file;
 	int fileSize;
 	int remainingData;
-        int receivedData;
-        int length = 5;
-	
+    int receivedData;
+    
+	// Segment Variables
+	int length = 5; // Number of packets to be sent at a time
 	struct packet _packet;
 	struct packet packets[5];
 	int _acks;
@@ -53,14 +57,13 @@ int main(int argc, char* argv[]) {
 	_socket = socket(AF_INET, SOCK_DGRAM, 0);
 
 
-	// Error Checking 
+	// Verifying the creation of socket
 	if (_socket < 0) {
 		perror("Server Socket could not be created/n");
 		return 0;
 	}
 
 	// Adding Values to the attributes of the sockaddr_in struct
-
 	memset((char*)& address, 0, sizeof(address));
 	address.sin_family = AF_INET;
 	address.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -69,13 +72,13 @@ int main(int argc, char* argv[]) {
 	// Binding the socket
 	_bind = bind(_socket, (struct sockaddr*) & address, sizeof(address));
 
-	// Error Checking
+	// Checking the bind
 	if (_bind < 0) {
 		perror("Could not bind\n");
 		return 0;
 	}
 
-	// Creating new file to be written if it does not exist (O_CREAT)
+	// Creating new file if it does not exist (O_CREAT)
 	// It can be read from and written to (O_RDWR)
 	// Set write rights for others to be true (S_IWOTH)
 	file = open(recVideoFile, O_RDWR | O_CREAT, S_IWOTH);
@@ -92,24 +95,28 @@ int main(int argc, char* argv[]) {
 
 	while (remainingData > 0) {
 
-		// setting array of packets to zero
+		// Setting array of packets to zero
+		// Reinitialize the array
 		memset(packets, 0, sizeof(packets));
-                for (int i = 0; i < 5; i++){
-                        packets[i].size = 0;
+        for (int i = 0; i < 5; i++){
+			packets[i].size = 0;
                 }
 
 		// Trying to receive 5 UDP segments
 		for (int i = 0; i < length; i++) {
 			recvlen = recvfrom(_socket, &_packet, sizeof(struct packet), 0, (struct sockaddr*) & address, &addr_length );
-                         if (_packet.size == -999){ printf("last packet found\n");length = _packet.seqNum + 1; }
+
+			// Check if last packet has been received
+            if (_packet.size == -999){ 
+				printf("last packet found\n");
+				// Decrementing the counter of the remaining loops
+				length = _packet.seqNum + 1; 
+			}
 
 			// Successfully received packet 
 			if (recvlen > 0) {
-
-				// Keeping the right order of packets by index of the array
-				packets[_packet.seqNum] = _packet;
-                               
-                               
+				// Keeping the correct order of packets by index of the array
+				packets[_packet.seqNum] = _packet;             
 			}
 		}
 
@@ -120,6 +127,7 @@ int main(int argc, char* argv[]) {
 
 			// Creating acks for the packets received
 			if (packets[i].size !=  0) {
+				// Setting condition for an ack to be checked by the client
 				acks[i].size = -99;
 				acks[i].seqNum = packets[i].seqNum;
 
@@ -134,17 +142,24 @@ int main(int argc, char* argv[]) {
 
 		// Selective Repeat
 		while (_acks < length) {
+			// Receive only that packet that was lost
 			recvlen = recvfrom(_socket, &_packet, sizeof(struct packet), 0, (struct sockaddr*) & address,&addr_length );
+			// After the packet has been received successfully
 			if (recvlen > 0) {
 				packets[_packet.seqNum] = _packet;
 				_acks++;
+				acks[_acks].size = -99;
+				acks[_acks].seqNum = packets[_acks].seqNum;
+
+
 			}
 	
 		}
 		
-                 WRITE:
+                 
 		// write data into file
 		for (int i = 0; i < length; i++) {
+			// Data is present in the packets and its not the last packet
 			if (packets[i].size != 0 && packets[i].size !=-999)
 			{
 				fprintf(stdout, "Writing packet: %d\n", packets[i].seqNum);
@@ -161,23 +176,7 @@ int main(int argc, char* argv[]) {
 	}
 
 
-	/*
-	// Receiving data
-	for (;;) {
-		printf("PORT NUMBER: %d\n", PORT);
-		// returns number of bytes. (recvlen)
-		// returns data in buf variable
-		recvlen = recvfrom(_socket, buf, BUFSIZE, 0, (struct sockaddr*) & address, &addr_length);
-		printf("Received %d bytes\n", recvlen);
-		if (recvlen > 0) {
-			buf[recvlen] = 0;
-			printf("received message: %s\n", buf);
-		}
-		if ((char *)buf == "end") {
-			close(_socket);
-		}
-	}
-      */
+	   fprintf(stdout, "\n\n File Received Successfully.\n The copied file is named \"received-video\"\nPlease check your ./ repository.\n\n");
        close(_socket);
        return 0;
 

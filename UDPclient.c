@@ -39,7 +39,7 @@ int main(int argc, char* argv[]) {
 
 	struct timespec time1, time2;
 	time1.tv_sec = 0;
-	time1.tv_nsec = 500000000L;
+	time1.tv_nsec = 5000000L;
 
 	int sendlen;
 	int len;
@@ -135,14 +135,15 @@ int main(int argc, char* argv[]) {
                 for (int i = 0; i < length; i++){ acks[i].size = 0;}
 
 		// stop and wait after sending 5 packets
-		// code is sleeping for 1s + 500ns
-		//nanosleep(&time1, &time2);
+		// code is sleeping for 5000000ns
+		nanosleep(&time1, &time2);
 		_acks = 0;
 		// receiving Acknowledgments
 		for (int i = 0; i < length; i++) {
 			recvlen = recvfrom(_socket, &ack, sizeof(struct packet), 0, (struct sockaddr*) & address, &addr_length);
 			if (ack.size == -99) {
 				fprintf(stdout, "Ack Received: %d\n", ack.seqNum);
+				// reorder acknowlegements according to their packets sequence number
 				acks[ack.seqNum] = ack;
 				_acks++;
 			}
@@ -181,7 +182,7 @@ int main(int argc, char* argv[]) {
 
 
 
-
+	fprintf(stdout,"\n\nFile sent successfully!\n\n");
 
 
 	close(_socket);
