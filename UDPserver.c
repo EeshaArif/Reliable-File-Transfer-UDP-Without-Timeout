@@ -82,7 +82,7 @@ int main(int argc, char* argv[]) {
 	// Creating new file if it does not exist (O_CREAT)
 	// It can be read from and written to (O_RDWR)
 	// Set write rights for others to be true (S_IWOTH)
-	file = open(recVideoFile, O_RDWR | O_CREAT, S_IWOTH);
+	file = open(recVideoFile, O_RDWR | O_CREAT, 0755);
 
 	
 	// Receiving the size of the video file
