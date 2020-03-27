@@ -10,7 +10,7 @@
 # include <fcntl.h>
 
 
-# define recVideoFile "received-video.mov"
+# define recVideoFile "received-video.mp4"
 # define BUFSIZE 500 // Restricting payload 
 
 struct packet {
@@ -94,7 +94,7 @@ int main(int argc, char* argv[]) {
 	recvlen = 1;
 	remainingData = fileSize;
 
-	while (remainingData > 0) {
+	while (remainingData > 0 || (length == 5)) {
 
 		// Setting array of packets to zero
 		// Reinitialize the array
@@ -130,7 +130,7 @@ int main(int argc, char* argv[]) {
 			if (packets[i].size !=  0) {
 				num = packets[i].seqNum;
 				// Setting condition for an ack to be checked by the client
-				acks[num].size = -99;
+				acks[num].size = 1;
 				acks[num].seqNum = packets[i].seqNum;
 
 				// Sending acks to the client
@@ -150,7 +150,7 @@ int main(int argc, char* argv[]) {
 			if (recvlen > 0) {
 				num = _packet.seqNum;
 				packets[num] = _packet;
-				acks[num].size = -99;
+				acks[num].size = 1;
 				acks[num].seqNum = _packet.seqNum;
 				// Sending acks again to the client
 				if (sendto(_socket, &acks[num], sizeof(acks[num]), 0, (struct sockaddr*) & address, addr_length)) {

@@ -13,7 +13,7 @@
 # include <time.h>
 
 # define ADDRESS "127.0.0.1"
-# define videoFile "earth.mov"
+# define videoFile "video.mp4"
 # define BUFSIZE 500 // Restricting payload 
 
 struct packet {
@@ -144,16 +144,14 @@ int main(int argc, char* argv[]) {
 		memset(acks, 0, sizeof(acks));
         for (int i = 0; i < length; i++){ acks[i].size = 0;}
 
-		// Stop and Wait after sending 5 packets
-		// code is sleeping for 5000000ns
-		nanosleep(&time1, &time2);
+
 
 		_acks = 0;
 		// receiving Acknowledgments
 		for (int i = 0; i < length; i++) {
 			recvlen = recvfrom(_socket, &ack, sizeof(struct packet), 0, (struct sockaddr*) & address, &addr_length);
             // Checking the specified condition 
-			if (ack.size == -99) {
+			if (ack.size == 1) {
 				fprintf(stdout, "Ack Received: %d\n", ack.seqNum);
 				// Reorder acknowlegements according to their packet's sequence number
 				acks[ack.seqNum] = ack;
@@ -161,6 +159,10 @@ int main(int argc, char* argv[]) {
 			}
                      
 		}
+
+                // Stop and Wait after sending 5 packets
+		// code is sleeping for 5000000ns
+		nanosleep(&time1, &time2);
 
 		// Selective Repeat 
 		// Sending those packets whose acks have not been received
