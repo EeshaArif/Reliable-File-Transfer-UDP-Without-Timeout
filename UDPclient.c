@@ -12,8 +12,8 @@
 # include <fcntl.h>
 # include <time.h>
 
-# define ADDRESS "127.0.0.1"
-# define videoFile "video.mp4"
+# define ADDRESS "127.0.0.1"   //"25.111.63.125"
+# define videoFile "earth.mov"
 # define BUFSIZE 500 // Restricting payload 
 
 struct packet {
@@ -134,8 +134,10 @@ int main(int argc, char* argv[]) {
 
 		// Sending Packets 
 		for (int i = 0; i < length; i++) {
+                       // if (i==3){continue;}
 			fprintf(stdout, "Sending packet %d\n", packets[i].seqNum);
 			sendlen = sendto(_socket, &packets[i], sizeof(struct packet), 0, (struct sockaddr*) & address, addr_length);
+                       
 		}
 
 

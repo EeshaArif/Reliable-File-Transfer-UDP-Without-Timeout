@@ -8,16 +8,53 @@
 # include <unistd.h>
 # include <netinet/in.h>
 # include <fcntl.h>
+# include <pthread.h>
+# include <fcntl.h>
+# include <time.h>
 
 
-# define recVideoFile "received-video.mp4"
+# define recVideoFile "received-video.mov"
 # define BUFSIZE 500 // Restricting payload 
+
 
 struct packet {
 	int seqNum;
 	char data[BUFSIZE];
 	int size;
 };
+
+int recvlen=0;
+int length = 5;
+int _socket;
+struct sockaddr_in address;
+socklen_t addr_length = sizeof(struct sockaddr_in);
+struct packet _packet;
+struct packet packets[5];
+
+void* receiveSegments(void *vargp) {
+
+	// Trying to receive 5 UDP segments
+	for (int i = 0; i < length; i++) {
+
+		recvlen = recvfrom(_socket, &_packet, sizeof(struct packet), 0, (struct sockaddr*) & address, &addr_length);
+		
+
+		// Check if last packet has been received
+		if (_packet.size == -999) {
+			printf("last packet found\n");
+			// Decrementing the counter of the remaining loops
+			length = _packet.seqNum + 1;
+		}
+
+		// Successfully received packet 
+		if (recvlen > 0) {
+			fprintf(stdout, "Packet Received:%d\n", _packet.seqNum);
+			// Keeping the correct order of packets by index of the array
+			packets[_packet.seqNum] = _packet;
+		}
+	}
+	return NULL;
+}
 
 int main(int argc, char* argv[]) {
 	// Two arguments should be provided
@@ -32,28 +69,33 @@ int main(int argc, char* argv[]) {
 	// Socket Variables
 	int PORT = atoi(argv[1]); // Converting string to integer (atoi)
 	int _bind;
-	int _socket;
-	struct sockaddr_in address;
-	socklen_t addr_length;
-    addr_length = sizeof(struct sockaddr_in);
+	//int _socket;
+	//struct sockaddr_in address;
+	//socklen_t addr_length;
+    //addr_length = sizeof(struct sockaddr_in);
 
 	// Video File Variables
-	int recvlen;
+	//int recvlen;
 	int sendlen;
 	int file;
 	int fileSize;
-	int remainingData;
-    int receivedData;
+	int remainingData = 0;
+        int receivedData = 0;
+
+       	// TimeDelay variables
+	struct timespec time1, time2;
+	time1.tv_sec = 0;
+	time1.tv_nsec = 30000000L;
     
 	// Segment Variables
-	int length = 5; // Number of packets to be sent at a time
-	struct packet _packet;
-	struct packet packets[5];
+	//int length = 5; // Number of packets to be sent at a time
+	//struct packet _packet;
+	//struct packet packets[5];
 	int _acks;
 	struct packet acks[5];
 	int num; 
 
-
+	pthread_t thread_id;
 	// Socket Created
 	_socket = socket(AF_INET, SOCK_DGRAM, 0);
 
@@ -81,7 +123,7 @@ int main(int argc, char* argv[]) {
 
 	// Creating new file if it does not exist (O_CREAT)
 	// It can be read from and written to (O_RDWR)
-	// Set write rights for others to be true (S_IWOTH)
+	
 	file = open(recVideoFile, O_RDWR | O_CREAT, 0755);
 
 	
@@ -103,9 +145,13 @@ int main(int argc, char* argv[]) {
 			packets[i].size = 0;
                 }
 
+		pthread_create(&thread_id, NULL, receiveSegments, NULL);
+		/*
 		// Trying to receive 5 UDP segments
 		for (int i = 0; i < length; i++) {
+
 			recvlen = recvfrom(_socket, &_packet, sizeof(struct packet), 0, (struct sockaddr*) & address, &addr_length );
+                       
 
 			// Check if last packet has been received
             if (_packet.size == -999){ 
@@ -116,12 +162,15 @@ int main(int argc, char* argv[]) {
 
 			// Successfully received packet 
 			if (recvlen > 0) {
+                               fprintf(stdout,"Packet Received:%d\n",_packet.seqNum);
 				// Keeping the correct order of packets by index of the array
 				packets[_packet.seqNum] = _packet;             
 			}
 		}
-
+		*/
+fprintf(stdout,"Packet Received:%d\n",777);
 		// Sending Acknowledgements for the packets received only
+                nanosleep(&time1, &time2);
 		_acks = 0;
 		for (int i = 0; i < length; i++) {
                         
@@ -141,8 +190,10 @@ int main(int argc, char* argv[]) {
 				}
 			}
 		}
+fprintf(stdout,"Packet Received:%d\n",77777);
 
 		// Selective Repeat
+                /*
 		while (_acks < length) {
 			// Receive only that packet that was lost
 			recvlen = recvfrom(_socket, &_packet, sizeof(struct packet), 0, (struct sockaddr*) & address,&addr_length );
@@ -160,7 +211,8 @@ int main(int argc, char* argv[]) {
 			}
 	
 		}
-		
+               */
+		pthread_join(thread_id, NULL);
                  
 		// write data into file
 		for (int i = 0; i < length; i++) {
