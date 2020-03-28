@@ -23,22 +23,51 @@ struct packet {
 	int size;
 };
 
-int recvlen=0;
-int length = 5;
+// Socket Variables
+int PORT;
+int _bind;
 int _socket;
 struct sockaddr_in address;
 socklen_t addr_length = sizeof(struct sockaddr_in);
+
+// Video File Variables
+int recvlen = 0;
+int sendlen = 0;
+int file;
+int fileSize;
+int remainingData = 0;
+int receivedData = 0;
+
+// Segment Variables
+int length = 5; // Number of packets to be sent at a time
 struct packet _packet;
 struct packet packets[5];
+int _acks;
+struct packet acks[5];
+int num;
+
 
 void* receiveSegments(void *vargp) {
 
 	// Trying to receive 5 UDP segments
 	for (int i = 0; i < length; i++) {
-
+        RECEIVE:
 		recvlen = recvfrom(_socket, &_packet, sizeof(struct packet), 0, (struct sockaddr*) & address, &addr_length);
-		
+		// If duplicate packet was sent
+        if (packets[_packet.seqNum].size != 0 ){ 
+                        // Reallocating the array
+                        packets[_packet.seqNum] = _packet;
+			// Create an acknowledgement 
+			num = _packet.seqNum;
+			acks[num].size = 1;
+			acks[num].seqNum = packets[num].seqNum;
+			// Send the ack to the client
+			sendlen = sendto(_socket, &acks[num], sizeof(acks[num]), 0, (struct sockaddr*) & address, addr_length);
+			fprintf(stdout,"Duplicate Ack Sent:%d\n",acks[num].seqNum);
 
+			// Keep receiving until 5 unique packets have not been delivered
+			goto RECEIVE;
+		}
 		// Check if last packet has been received
 		if (_packet.size == -999) {
 			printf("last packet found\n");
@@ -52,6 +81,7 @@ void* receiveSegments(void *vargp) {
 			// Keeping the correct order of packets by index of the array
 			packets[_packet.seqNum] = _packet;
 		}
+              
 	}
 	return NULL;
 }
@@ -66,36 +96,16 @@ int main(int argc, char* argv[]) {
 	}
 
 	
-	// Socket Variables
-	int PORT = atoi(argv[1]); // Converting string to integer (atoi)
-	int _bind;
-	//int _socket;
-	//struct sockaddr_in address;
-	//socklen_t addr_length;
-    //addr_length = sizeof(struct sockaddr_in);
+	PORT = atoi(argv[1]); // Converting string to integer (atoi)
 
-	// Video File Variables
-	//int recvlen;
-	int sendlen;
-	int file;
-	int fileSize;
-	int remainingData = 0;
-        int receivedData = 0;
-
-       	// TimeDelay variables
+   	// TimeDelay variables
 	struct timespec time1, time2;
 	time1.tv_sec = 0;
-	time1.tv_nsec = 30000000L;
+	time1.tv_nsec = 10000000L;
     
-	// Segment Variables
-	//int length = 5; // Number of packets to be sent at a time
-	//struct packet _packet;
-	//struct packet packets[5];
-	int _acks;
-	struct packet acks[5];
-	int num; 
-
+	// Thread ID
 	pthread_t thread_id;
+
 	// Socket Created
 	_socket = socket(AF_INET, SOCK_DGRAM, 0);
 
@@ -144,77 +154,56 @@ int main(int argc, char* argv[]) {
         for (int i = 0; i < 5; i++){
 			packets[i].size = 0;
                 }
+        memset(acks, 0, sizeof(packets));
+        for (int i = 0; i < 5; i++){
+			acks[i].size = 0;
+                }
 
 		pthread_create(&thread_id, NULL, receiveSegments, NULL);
-		/*
-		// Trying to receive 5 UDP segments
-		for (int i = 0; i < length; i++) {
 
-			recvlen = recvfrom(_socket, &_packet, sizeof(struct packet), 0, (struct sockaddr*) & address, &addr_length );
-                       
+        // Waiting for the packets
+        nanosleep(&time1, &time2);
 
-			// Check if last packet has been received
-            if (_packet.size == -999){ 
-				printf("last packet found\n");
-				// Decrementing the counter of the remaining loops
-				length = _packet.seqNum + 1; 
-			}
-
-			// Successfully received packet 
-			if (recvlen > 0) {
-                               fprintf(stdout,"Packet Received:%d\n",_packet.seqNum);
-				// Keeping the correct order of packets by index of the array
-				packets[_packet.seqNum] = _packet;             
-			}
-		}
-		*/
-fprintf(stdout,"Packet Received:%d\n",777);
-		// Sending Acknowledgements for the packets received only
-                nanosleep(&time1, &time2);
 		_acks = 0;
+
+		// Sending Acknowledgements for the packets received only
+
+		RESEND_ACK:
 		for (int i = 0; i < length; i++) {
-                        
+			num = packets[i].seqNum;
+			// If the ack has not been sent before
+			if (acks[num].size != 1 ) {
+				// Creating acks for the packets received ONLY
+				if (packets[i].size != 0) {
+					// Setting condition for an ack to be checked by the client
+					acks[num].size = 1;
+					acks[num].seqNum = packets[i].seqNum;
 
-			// Creating acks for the packets received
-			if (packets[i].size !=  0) {
-				num = packets[i].seqNum;
-				// Setting condition for an ack to be checked by the client
-				acks[num].size = 1;
-				acks[num].seqNum = packets[i].seqNum;
-
-				// Sending acks to the client
-				sendlen = sendto(_socket, &acks[num], sizeof(acks[num]), 0, (struct sockaddr*) & address, addr_length);
-				if (sendlen > 0) {
-					_acks++;
-					fprintf(stdout, "Ack sent: %d\n", acks[packets[num].seqNum].seqNum);
+					// Sending acks to the client
+					sendlen = sendto(_socket, &acks[num], sizeof(acks[num]), 0, (struct sockaddr*) & address, addr_length);
+					if (sendlen > 0) {
+						_acks++;
+						fprintf(stdout, "Ack sent: %d\n", acks[packets[num].seqNum].seqNum);
+					}
 				}
-			}
-		}
-fprintf(stdout,"Packet Received:%d\n",77777);
 
-		// Selective Repeat
-                /*
-		while (_acks < length) {
-			// Receive only that packet that was lost
-			recvlen = recvfrom(_socket, &_packet, sizeof(struct packet), 0, (struct sockaddr*) & address,&addr_length );
-			// After the packet has been received successfully
-			if (recvlen > 0) {
-				num = _packet.seqNum;
-				packets[num] = _packet;
-				acks[num].size = 1;
-				acks[num].seqNum = _packet.seqNum;
-				// Sending acks again to the client
-				if (sendto(_socket, &acks[num], sizeof(acks[num]), 0, (struct sockaddr*) & address, addr_length)) {
-					fprintf(stdout, "Ack sent: %d\n", acks[num].seqNum);
-					_acks++;
-				}
 			}
-	
+			
 		}
-               */
+
+		// Waiting for packets to be re-received
+		nanosleep(&time1, &time2);
+		nanosleep(&time1, &time2);
+
+		// If all packets were not received
+		if (_acks < length) {
+			goto RESEND_ACK;
+		}
+                
+		// Wait until 5 packets have been received in the thread
 		pthread_join(thread_id, NULL);
                  
-		// write data into file
+		// Write data into file
 		for (int i = 0; i < length; i++) {
 			// Data is present in the packets and its not the last packet
 			if (packets[i].size != 0 && packets[i].size !=-999)

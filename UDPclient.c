@@ -11,6 +11,7 @@
 # include <sys/sendfile.h>
 # include <fcntl.h>
 # include <time.h>
+# include <pthread.h>
 
 # define ADDRESS "127.0.0.1"   //"25.111.63.125"
 # define videoFile "earth.mov"
@@ -22,43 +23,68 @@ struct packet {
 	int size;
 };
 
+// Socket Variables
+int PORT; // Converting string to integer (atoi)
+int _socket;
+struct sockaddr_in address;
+socklen_t addr_length = sizeof(struct sockaddr_in);
+
+
+// File Variables
+int sendlen;
+int len;
+int recvlen;
+int file;
+struct stat fileStat;
+off_t fileSize;
+
+// Segment Variables
+struct packet packets[5]; // Restricting to 5 UDP segments 
+int _seqNum = 1;
+int _acks;
+struct packet ack;
+struct packet acks[5];
+int length = 5;
+
+// Thread to Receive Acknowledgments
+void* receiveAcks(void* vargp) {
+	for (int i = 0; i < length; i++) {
+		RECEIVE:
+		recvlen = recvfrom(_socket, &ack, sizeof(struct packet), 0, (struct sockaddr*) & address, &addr_length);
+		// Duplicate ack
+		if (acks[ack.seqNum].size == 1) { goto RECEIVE; }
+		// Checking the specified condition 
+		if (ack.size == 1) {
+			fprintf(stdout, "Ack Received: %d\n", ack.seqNum);
+			// Reorder acknowlegements according to their packet's sequence number
+			acks[ack.seqNum] = ack;
+			_acks++;
+		}
+
+	}
+    return NULL;
+}
+
+
 int main(int argc, char* argv[]) {
 
 	// Two arguments should be provided
 	if (argc < 2) {
 		// Port Number needs to be specified on the command line
 		perror("Port Number not specified.\nTry ./cli.out 9898\n");
-                return 0;
+        return 0;
 
 	}
 
-	// Socket Variables
-	int PORT = atoi(argv[1]); // Converting string to integer (atoi)
-	int _socket;
-	struct sockaddr_in address;
-	socklen_t addr_length = sizeof(struct sockaddr_in);
+	PORT = atoi(argv[1]); // Converting string to integer (atoi)
 
-	// TimeDelay variables
+	// Creating Thread ID
+	pthread_t thread_id;
+        
+    // TimeDelay variables
 	struct timespec time1, time2;
 	time1.tv_sec = 0;
-	time1.tv_nsec = 5000000L;
-
-	// File Variables
-	int sendlen;
-	int len;
-	int recvlen;
-	int file;
-	struct stat fileStat;
-	off_t fileSize;
-
-	// Segment Variables
-	struct packet packets[5]; // Restricting to 5 UDP segments 
-	int _seqNum = 1;
-	int _acks;
-	struct packet ack;
-	struct packet acks[5];
-	int length = 5;
-
+	time1.tv_nsec = 100000000L;
 
 
 	// Socket Created
@@ -133,8 +159,7 @@ int main(int argc, char* argv[]) {
 		}
 
 		// Sending Packets 
-		for (int i = 0; i < length; i++) {
-                       // if (i==3){continue;}
+		for (int i = 0; i < length; i++) {if (i==3 || i==2){continue;}
 			fprintf(stdout, "Sending packet %d\n", packets[i].seqNum);
 			sendlen = sendto(_socket, &packets[i], sizeof(struct packet), 0, (struct sockaddr*) & address, addr_length);
                        
@@ -149,21 +174,11 @@ int main(int argc, char* argv[]) {
 
 
 		_acks = 0;
-		// receiving Acknowledgments
-		for (int i = 0; i < length; i++) {
-			recvlen = recvfrom(_socket, &ack, sizeof(struct packet), 0, (struct sockaddr*) & address, &addr_length);
-            // Checking the specified condition 
-			if (ack.size == 1) {
-				fprintf(stdout, "Ack Received: %d\n", ack.seqNum);
-				// Reorder acknowlegements according to their packet's sequence number
-				acks[ack.seqNum] = ack;
-				_acks++;
-			}
-                     
-		}
 
-                // Stop and Wait after sending 5 packets
-		// code is sleeping for 5000000ns
+		// Receiving Acknowledgments
+		pthread_create(&thread_id, NULL, receiveAcks, NULL);
+                   
+		// Waiting for acks 
 		nanosleep(&time1, &time2);
 
 		// Selective Repeat 
@@ -172,26 +187,24 @@ int main(int argc, char* argv[]) {
 		for (int i = 0; i < length; i++) {
 			// checking which acks have not been received
 			if (acks[i].size == 0) {
-				// Sending the missing packets
-                fprintf(stdout,"sending missing packet: %d",packets[i].seqNum);
+				// Sending the missing packets ONLY
+                fprintf(stdout,"sending missing packet: %d\n",packets[i].seqNum);
 				sendlen = sendto(_socket, &packets[i], sizeof(struct packet), 0, (struct sockaddr*) & address, addr_length);
-				// Receiving acknowlegements again
-				if (recvfrom(_socket, &ack, sizeof(struct packet), 0, (struct sockaddr*) & address, &addr_length)) {
-					fprintf(stdout, "Ack Received: %d\n", ack.seqNum);
-					acks[ack.seqNum] = ack;
-					_acks++;
-
-				}
+		
 			}
 		}
 
+
 		// Resend the packets again whose acknowlegements have not been received
 		if (_acks != length) {
-			fprintf(stdout, "Resending\n");
+            // Wait for acknowledgements
+            nanosleep(&time1, &time2);
 			goto RESEND;
 		     
 		}
-
+		// Wait for 5 Acks to be received
+		// Waiting for Thread to finish execution
+		pthread_join(thread_id, NULL);
 	}
 
 	fprintf(stdout,"\n\nFile sent successfully!\n\n");
