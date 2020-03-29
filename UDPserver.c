@@ -101,7 +101,7 @@ int main(int argc, char* argv[]) {
    	// TimeDelay variables
 	struct timespec time1, time2;
 	time1.tv_sec = 0;
-	time1.tv_nsec = 10000000L;
+	time1.tv_nsec = 30000000L;
     
 	// Thread ID
 	pthread_t thread_id;

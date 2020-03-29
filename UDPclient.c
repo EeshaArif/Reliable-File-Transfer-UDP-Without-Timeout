@@ -13,7 +13,7 @@
 # include <time.h>
 # include <pthread.h>
 
-# define ADDRESS "127.0.0.1"   //"25.111.63.125"
+# define ADDRESS "127.0.0.1"
 # define videoFile "earth.mov"
 # define BUFSIZE 500 // Restricting payload 
 
@@ -84,7 +84,7 @@ int main(int argc, char* argv[]) {
     // TimeDelay variables
 	struct timespec time1, time2;
 	time1.tv_sec = 0;
-	time1.tv_nsec = 100000000L;
+	time1.tv_nsec = 300000000L;
 
 
 	// Socket Created
