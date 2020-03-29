@@ -158,7 +158,8 @@ int main(int argc, char* argv[]) {
         for (int i = 0; i < 5; i++){
 			acks[i].size = 0;
                 }
-
+               
+                // Start Receiving packets 
 		pthread_create(&thread_id, NULL, receiveSegments, NULL);
 
         // Waiting for the packets

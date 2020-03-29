@@ -159,7 +159,7 @@ int main(int argc, char* argv[]) {
 		}
 
 		// Sending Packets 
-		for (int i = 0; i < length; i++) {if (i==3 || i==2){continue;}
+		for (int i = 0; i < length; i++) {
 			fprintf(stdout, "Sending packet %d\n", packets[i].seqNum);
 			sendlen = sendto(_socket, &packets[i], sizeof(struct packet), 0, (struct sockaddr*) & address, addr_length);
                        
