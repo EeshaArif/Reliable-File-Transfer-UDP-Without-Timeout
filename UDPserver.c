@@ -19,8 +19,8 @@
 
 struct packet {
 	int seqNum;
-	char data[BUFSIZE];
 	int size;
+	char data[BUFSIZE];
 };
 
 // Socket Variables
@@ -47,16 +47,23 @@ struct packet acks[5];
 int num;
 
 
+
+
+// Thread to receive Packets
+
+// This runs parallel within the main program
 void* receiveSegments(void *vargp) {
 
 	// Trying to receive 5 UDP segments
 	for (int i = 0; i < length; i++) {
         RECEIVE:
 		recvlen = recvfrom(_socket, &_packet, sizeof(struct packet), 0, (struct sockaddr*) & address, &addr_length);
+
 		// If duplicate packet was sent
+
         if (packets[_packet.seqNum].size != 0 ){ 
-                        // Reallocating the array
-                        packets[_packet.seqNum] = _packet;
+            // Reallocating the array
+            packets[_packet.seqNum] = _packet;
 			// Create an acknowledgement 
 			num = _packet.seqNum;
 			acks[num].size = 1;
@@ -65,17 +72,19 @@ void* receiveSegments(void *vargp) {
 			sendlen = sendto(_socket, &acks[num], sizeof(acks[num]), 0, (struct sockaddr*) & address, addr_length);
 			fprintf(stdout,"Duplicate Ack Sent:%d\n",acks[num].seqNum);
 
-			// Keep receiving until 5 unique packets have not been delivered
+			// Receive packet again until a unique packets is sent
 			goto RECEIVE;
 		}
-		// Check if last packet has been received
+
+		// If last packet was sent
+
 		if (_packet.size == -999) {
 			printf("last packet found\n");
 			// Decrementing the counter of the remaining loops
 			length = _packet.seqNum + 1;
 		}
 
-		// Successfully received packet 
+		// Successfully received a unique packet 
 		if (recvlen > 0) {
 			fprintf(stdout, "Packet Received:%d\n", _packet.seqNum);
 			// Keeping the correct order of packets by index of the array
@@ -86,6 +95,10 @@ void* receiveSegments(void *vargp) {
 	return NULL;
 }
 
+
+
+
+
 int main(int argc, char* argv[]) {
 	// Two arguments should be provided
 	// Specifying port number from command line
@@ -95,13 +108,13 @@ int main(int argc, char* argv[]) {
 
 	}
 
-	
+	// Using the value of the port number received from the command line
 	PORT = atoi(argv[1]); // Converting string to integer (atoi)
 
    	// TimeDelay variables
 	struct timespec time1, time2;
 	time1.tv_sec = 0;
-	time1.tv_nsec = 30000000L;
+	time1.tv_nsec = 30000000L;  // 0.03 seconds
     
 	// Thread ID
 	pthread_t thread_id;
@@ -133,7 +146,6 @@ int main(int argc, char* argv[]) {
 
 	// Creating new file if it does not exist (O_CREAT)
 	// It can be read from and written to (O_RDWR)
-	
 	file = open(recVideoFile, O_RDWR | O_CREAT, 0755);
 
 	
@@ -148,21 +160,24 @@ int main(int argc, char* argv[]) {
 
 	while (remainingData > 0 || (length == 5)) {
 
+
+		// Reinitializing the arrays after writing 5 UDP segments
+		
 		// Setting array of packets to zero
-		// Reinitialize the array
 		memset(packets, 0, sizeof(packets));
-        for (int i = 0; i < 5; i++){
-			packets[i].size = 0;
-                }
+        for (int i = 0; i < 5; i++){ packets[i].size = 0; }
+
+		// Setting array of acks to zero
         memset(acks, 0, sizeof(packets));
-        for (int i = 0; i < 5; i++){
-			acks[i].size = 0;
-                }
+        for (int i = 0; i < 5; i++){ acks[i].size = 0; }
+
+
+
                
-                // Start Receiving packets 
+        // The server starts receiving packets ( Thread execution starts )
 		pthread_create(&thread_id, NULL, receiveSegments, NULL);
 
-        // Waiting for the packets
+        // Waiting for packets to be received ( The code sleeps for 0.03 seconds )
         nanosleep(&time1, &time2);
 
 		_acks = 0;
@@ -192,7 +207,8 @@ int main(int argc, char* argv[]) {
 			
 		}
 
-		// Waiting for packets to be re-received
+		// Stop n Wait
+		// Waiting for acks to be sent and processed by the client
 		nanosleep(&time1, &time2);
 		nanosleep(&time1, &time2);
 
@@ -201,31 +217,34 @@ int main(int argc, char* argv[]) {
 			goto RESEND_ACK;
 		}
                 
-		// Wait until 5 packets have been received in the thread
+		// 5 packets have been received ( The thread executes successfully )
 		pthread_join(thread_id, NULL);
                  
-		// Write data into file
+		// Write data (packets) into file
 		for (int i = 0; i < length; i++) {
 			// Data is present in the packets and its not the last packet
 			if (packets[i].size != 0 && packets[i].size !=-999)
 			{
 				fprintf(stdout, "Writing packet: %d\n", packets[i].seqNum);
 				write(file, packets[i].data, packets[i].size);
-				receivedData = receivedData + packets[i].size;
 				remainingData = remainingData - packets[i].size;
+				receivedData = receivedData + packets[i].size;
+				
 			}
 		}
 
 
-		fprintf(stdout, "Total received bytes: %d\nRemaining data: %d bytes\n", receivedData, remainingData);
+		fprintf(stdout, "Received data: %d bytes\nRemaining data: %d bytes\n", receivedData, remainingData);
 
-
+		// Reinitiate the process for the next 5 packets
 	}
 
+	// After all the packets have been received
+	fprintf(stdout, "\n\nFile Received Successfully.\nThe copied file is named \"received-video\"\nPlease check your ./ repository.\n\n");
 
-	   fprintf(stdout, "\n\nFile Received Successfully.\nThe copied file is named \"received-video\"\nPlease check your ./ repository.\n\n");
-       close(_socket);
-       return 0;
+	// Close the UDP (server) socket
+    close(_socket);
+    return 0;
 
 
 }

@@ -19,8 +19,8 @@
 
 struct packet {
 	int seqNum;
-	char data[BUFSIZE];
 	int size;
+	char data[BUFSIZE];
 };
 
 // Socket Variables
@@ -46,14 +46,26 @@ struct packet ack;
 struct packet acks[5];
 int length = 5;
 
+
+
 // Thread to Receive Acknowledgments
+
+// After the thread is created, it runs parallel within the main program
 void* receiveAcks(void* vargp) {
+
+	// Trying to receive 5 Acknowledgments 
 	for (int i = 0; i < length; i++) {
-		RECEIVE:
+		
+	    RECEIVE:
 		recvlen = recvfrom(_socket, &ack, sizeof(struct packet), 0, (struct sockaddr*) & address, &addr_length);
-		// Duplicate ack
-		if (acks[ack.seqNum].size == 1) { goto RECEIVE; }
-		// Checking the specified condition 
+		
+		// If duplicate ack was sent
+		if (acks[ack.seqNum].size == 1) {
+			// Receive ack again until a unique ack is sent 
+			goto RECEIVE; 
+		}
+
+		// Successfully received a unique Ack
 		if (ack.size == 1) {
 			fprintf(stdout, "Ack Received: %d\n", ack.seqNum);
 			// Reorder acknowlegements according to their packet's sequence number
@@ -66,6 +78,8 @@ void* receiveAcks(void* vargp) {
 }
 
 
+
+
 int main(int argc, char* argv[]) {
 
 	// Two arguments should be provided
@@ -76,6 +90,7 @@ int main(int argc, char* argv[]) {
 
 	}
 
+	// Using the value of the port number received from the command line
 	PORT = atoi(argv[1]); // Converting string to integer (atoi)
 
 	// Creating Thread ID
@@ -130,7 +145,8 @@ int main(int argc, char* argv[]) {
 
 
 	len = 1;
-	// while there is still data to be read in the file
+
+	// While there is still data to be read in the file
 	while (len > 0) {
 
 
@@ -144,7 +160,8 @@ int main(int argc, char* argv[]) {
             // Specifying Size
 			packets[i].size = len;
 			_seqNum++;
-			// The last packet to be sent
+
+			// The last packet to be sent ( End of File Reached )
             if (len == 0){ 
                       printf("End of file reached.\n");
                       // Setting a condition for last packet
@@ -153,42 +170,42 @@ int main(int argc, char* argv[]) {
                       length = i + 1; 
                       break; 
             }
-
-
-
 		}
 
-		// Sending Packets 
+
+		// Sending 5 Packets 
 		for (int i = 0; i < length; i++) {
 			fprintf(stdout, "Sending packet %d\n", packets[i].seqNum);
-			sendlen = sendto(_socket, &packets[i], sizeof(struct packet), 0, (struct sockaddr*) & address, addr_length);
-                       
+			sendlen = sendto(_socket, &packets[i], sizeof(struct packet), 0, (struct sockaddr*) & address, addr_length);            
 		}
 
 
+		
+        // Reinitializing the Array
 		// Setting array of Acks to zero 
-        // Reinitializing the array
 		memset(acks, 0, sizeof(acks));
         for (int i = 0; i < length; i++){ acks[i].size = 0;}
 
-
-
 		_acks = 0;
 
-		// Receiving Acknowledgments
+
+		// The client starts receiving acks ( Thread execution starts )
 		pthread_create(&thread_id, NULL, receiveAcks, NULL);
                    
-		// Waiting for acks 
+		// Waiting for acks to be received ( The code sleeps for 0.03 seconds )
 		nanosleep(&time1, &time2);
 
 		// Selective Repeat 
-		// Sending those packets whose acks have not been received
+
+		// Sending those packets ONLY whose acks have not been received
 		RESEND:
 		for (int i = 0; i < length; i++) {
-			// checking which acks have not been received
+
+			// If the ack has not been received
 			if (acks[i].size == 0) {
-				// Sending the missing packets ONLY
-                fprintf(stdout,"sending missing packet: %d\n",packets[i].seqNum);
+
+				// Sending that packet whose ack was not received 
+                fprintf(stdout,"Sending missing packet: %d\n",packets[i].seqNum);
 				sendlen = sendto(_socket, &packets[i], sizeof(struct packet), 0, (struct sockaddr*) & address, addr_length);
 		
 			}
@@ -197,17 +214,23 @@ int main(int argc, char* argv[]) {
 
 		// Resend the packets again whose acknowlegements have not been received
 		if (_acks != length) {
-            // Wait for acknowledgements
+            // Wait for acknowledgements of the packets that were sent again
             nanosleep(&time1, &time2);
 			goto RESEND;
 		     
 		}
-		// Wait for 5 Acks to be received
-		// Waiting for Thread to finish execution
+
+		
+		// 5 acks have been received ( The thread executes successfully )
 		pthread_join(thread_id, NULL);
+
+
+		// Keep sending packets until the end of file is not reached 
 	}
 
 	fprintf(stdout,"\n\nFile sent successfully!\n\n");
+
+	// Close the UDP (client) socket
 	close(_socket);
 
 	return 0;
