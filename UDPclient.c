@@ -24,7 +24,7 @@ struct packet {
 };
 
 // Socket Variables
-int PORT; // Converting string to integer (atoi)
+int PORT; 
 int _socket;
 struct sockaddr_in address;
 socklen_t addr_length = sizeof(struct sockaddr_in);
@@ -32,7 +32,7 @@ socklen_t addr_length = sizeof(struct sockaddr_in);
 
 // File Variables
 int sendlen;
-int len;
+int data;
 int recvlen;
 int file;
 struct stat fileStat;
@@ -144,25 +144,25 @@ int main(int argc, char* argv[]) {
 	}
 
 
-	len = 1;
+	data = 1;
 
 	// While there is still data to be read in the file
-	while (len > 0) {
+	while (data > 0) {
 
 
 		// Putting file data into packets
 		_seqNum = 0;
 		for (int i = 0; i < length; i++) {
             // Reading data 
-			len = read(file, packets[i].data, BUFSIZE);
+			data = read(file, packets[i].data, BUFSIZE);
             // Allocating sequence numbers
 			packets[i].seqNum = _seqNum;
             // Specifying Size
-			packets[i].size = len;
+			packets[i].size = data;
 			_seqNum++;
 
 			// The last packet to be sent ( End of File Reached )
-            if (len == 0){ 
+            if (data == 0){ 
                       printf("End of file reached.\n");
                       // Setting a condition for last packet
                       packets[i].size = -999; 
@@ -182,7 +182,7 @@ int main(int argc, char* argv[]) {
 
 		
         // Reinitializing the Array
-		// Setting array of Acks to zero 
+
 		memset(acks, 0, sizeof(acks));
         for (int i = 0; i < length; i++){ acks[i].size = 0;}
 

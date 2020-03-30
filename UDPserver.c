@@ -163,11 +163,11 @@ int main(int argc, char* argv[]) {
 
 		// Reinitializing the arrays after writing 5 UDP segments
 		
-		// Setting array of packets to zero
+		// Setting the packet size to zero
 		memset(packets, 0, sizeof(packets));
         for (int i = 0; i < 5; i++){ packets[i].size = 0; }
 
-		// Setting array of acks to zero
+		// Setting the ack size to zero
         memset(acks, 0, sizeof(packets));
         for (int i = 0; i < 5; i++){ acks[i].size = 0; }
 
