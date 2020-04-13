@@ -50,7 +50,6 @@ int num;
 
 
 // Thread to receive Packets
-
 // This runs parallel within the main program
 void* receiveSegments(void *vargp) {
 
@@ -146,6 +145,7 @@ int main(int argc, char* argv[]) {
 
 	// Creating new file if it does not exist (O_CREAT)
 	// It can be read from and written to (O_RDWR)
+	// 0755 - It is given all permissions
 	file = open(recVideoFile, O_RDWR | O_CREAT, 0755);
 
 	
@@ -202,9 +202,7 @@ int main(int argc, char* argv[]) {
 						fprintf(stdout, "Ack sent: %d\n", acks[packets[num].seqNum].seqNum);
 					}
 				}
-
 			}
-			
 		}
 
 		// Stop n Wait
