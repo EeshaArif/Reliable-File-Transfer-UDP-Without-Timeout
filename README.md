@@ -16,3 +16,12 @@ Commands to compile the files
 Commands to run the files
 * `./serv.out 9898`
 * `./cli.out 9898`
+
+### Client
+An abstract explanation of the client logic:
+
+![client-logic-flowchart](https://github.com/EeshaArif/Relaible_UDP_VideoFileTransfer/blob/master/Client-FlowChart.png "Client-FlowChart")
+### Server
+An abstract explanation of the server logic:
+
+![server-logic-flowchart](https://github.com/EeshaArif/Relaible_UDP_VideoFileTransfer/blob/master/Server-FlowChart.png "Server-FlowChart")
